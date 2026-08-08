@@ -195,7 +195,7 @@ def get_ratios(ticker):
         balance_sheet = company.get_balance_sheet(freq="yearly")
     except Exception as e:
         raise ValueError(
-            f"Could not retrieve ratio data for '{ticker.upper()}'."
+            f"Could not retrieve ratio data for '{ticker.upper()}': {str(e)}."
         ) from e
 
     if not info or not info.get("longName"):
