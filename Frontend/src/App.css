@@ -1,0 +1,293 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f5f7fa;
+  color: #172033;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app {
+  min-height: 100vh;
+}
+
+.header {
+  background: #111827;
+  color: white;
+  padding: 28px 60px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin: 6px 0 0;
+  color: #aeb8c8;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.search-section {
+  background: white;
+  padding: 28px;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.search-section h2 {
+  margin-top: 0;
+}
+
+.search-box {
+  display: flex;
+  gap: 12px;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 14px 16px;
+  border: 1px solid #d5dbe5;
+  border-radius: 8px;
+  outline: none;
+}
+
+.search-box input:focus {
+  border-color: #2563eb;
+}
+
+.search-box button {
+  padding: 14px 28px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.search-box button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.example {
+  color: #687386;
+  font-size: 14px;
+}
+
+.error {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.company-header {
+  margin-top: 30px;
+  background: white;
+  border-radius: 14px;
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.eyebrow {
+  color: #687386;
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.company-header h2 {
+  margin: 5px 0 0;
+  font-size: 32px;
+}
+
+.health-score {
+  text-align: right;
+}
+
+.health-score p {
+  margin: 0;
+  color: #687386;
+}
+
+.health-score strong {
+  display: block;
+  font-size: 38px;
+  margin: 4px 0;
+}
+
+.health-score span {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.metrics-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.metric-card {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.metric-card p,
+.info-card p {
+  margin: 0 0 10px;
+  color: #687386;
+  font-size: 14px;
+}
+
+.metric-card strong {
+  font-size: 26px;
+}
+
+.section {
+  margin-top: 32px;
+}
+
+.section h2 {
+  margin-bottom: 16px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.info-card {
+  background: white;
+  padding: 22px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.info-card strong {
+  display: block;
+  font-size: 25px;
+  margin-bottom: 8px;
+}
+
+.info-card span {
+  color: #687386;
+  font-size: 14px;
+}
+
+.score-list {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.score-row {
+  margin-bottom: 22px;
+}
+
+.score-row:last-child {
+  margin-bottom: 0;
+}
+
+.score-name {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.score-name strong {
+  font-weight: 600;
+}
+
+.score-bar {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 10px;
+}
+
+.insights {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+
+.insight {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-bottom: 1px solid #edf0f4;
+  padding: 12px 0;
+}
+
+.insight:last-child {
+  border-bottom: none;
+}
+
+.insight span {
+  color: #2563eb;
+  font-size: 20px;
+}
+
+.insight p {
+  margin: 2px 0;
+}
+
+@media (max-width: 800px) {
+  .metrics-grid,
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .company-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .health-score {
+    text-align: left;
+  }
+}
+
+@media (max-width: 500px) {
+  .metrics-grid,
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    padding: 24px;
+  }
+
+  .search-box {
+    flex-direction: column;
+  }
+}

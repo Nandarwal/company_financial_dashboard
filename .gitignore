@@ -1,0 +1,33 @@
+# Python virtual environment
+Backend/venv/
+
+# Python cache files
+__pycache__/
+Backend/**/__pycache__/
+*.py[cod]
+
+# Environment variables / secrets
+.env
+.env.*
+Backend/.env
+Frontend/.env
+
+# macOS
+.DS_Store
+
+# Python testing / tooling
+.pytest_cache/
+.mypy_cache/
+
+# IDE settings
+.idea/
+.vscode/
+
+# React / Node
+Frontend/node_modules/
+Frontend/dist/
+
+# Vite local files
+Frontend/*.local
+Frontend/.env.local
+Frontend/.env.*.local
