@@ -2157,3 +2157,189 @@ def generate_basic_insights(
         )
 
     return insights
+
+# =========================================================
+# PEER COMPARISON
+# =========================================================
+
+def build_peer_comparison(tickers, get_statements_func, get_ratios_func):
+    """
+    Build a comparable financial snapshot for multiple companies
+    using the same analysis logic as the individual company endpoint.
+    """
+
+    companies = []
+
+    for ticker in tickers:
+
+        ticker = ticker.strip().upper()
+
+        if not ticker:
+            continue
+
+        try:
+
+            # -------------------------------------------------
+            # 1. FETCH FINANCIAL STATEMENTS
+            # -------------------------------------------------
+
+            statements = get_statements_func(ticker)
+
+            # -------------------------------------------------
+            # 2. RUN EXISTING ANALYSIS FUNCTIONS
+            # -------------------------------------------------
+
+            growth_analysis = analyze_growth(
+                statements
+            )
+
+            margin_analysis = analyze_margins(
+                statements
+            )
+
+            cash_flow_analysis = analyze_cash_flow(
+                statements
+            )
+
+            debt_analysis = analyze_debt(
+                statements
+            )
+
+            liquidity_analysis = analyze_liquidity(
+                statements
+            )
+
+            financial_health = calculate_financial_health_score(
+                growth_analysis,
+                margin_analysis,
+                cash_flow_analysis,
+                debt_analysis,
+                liquidity_analysis
+            )
+
+            # -------------------------------------------------
+            # 3. GET EXISTING RATIOS
+            # -------------------------------------------------
+
+            ratios = get_ratios_func(ticker)
+
+            # -------------------------------------------------
+            # 4. EXTRACT REVENUE
+            # -------------------------------------------------
+
+            income_statement = statements.get(
+                "income_statement",
+                {}
+            )
+
+            revenue = income_statement.get(
+                "revenue",
+                {}
+            )
+
+            valid_revenue = {
+                year: value
+                for year, value in revenue.items()
+                if value is not None
+            }
+
+            latest_revenue_year = (
+                max(valid_revenue.keys(), key=int)
+                if valid_revenue
+                else None
+            )
+
+            latest_revenue = (
+                valid_revenue[latest_revenue_year]
+                if latest_revenue_year
+                else None
+            )
+
+            # -------------------------------------------------
+            # 5. EXTRACT NET INCOME
+            # -------------------------------------------------
+
+            net_income = income_statement.get(
+                "net_income",
+                {}
+            )
+
+            valid_income = {
+                year: value
+                for year, value in net_income.items()
+                if value is not None
+            }
+
+            latest_income_year = (
+                max(valid_income.keys(), key=int)
+                if valid_income
+                else None
+            )
+
+            latest_net_income = (
+                valid_income[latest_income_year]
+                if latest_income_year
+                else None
+            )
+
+            # -------------------------------------------------
+            # 6. EXTRACT GROWTH
+            # -------------------------------------------------
+
+            revenue_growth = (
+                growth_analysis
+                .get("revenue_growth", {})
+                .get("cagr")
+            )
+
+            profit_growth = (
+                growth_analysis
+                .get("profit_growth", {})
+                .get("cagr")
+            )
+
+            # -------------------------------------------------
+            # 7. RETURN COMPARISON RECORD
+            # -------------------------------------------------
+
+            companies.append({
+
+                "ticker": ticker,
+
+                "revenue": latest_revenue,
+
+                "revenue_growth": revenue_growth,
+
+                "profit_growth": profit_growth,
+
+                "profit_margin": ratios.get(
+                    "profit_margin_percent"
+                ),
+
+                "pe_ratio": ratios.get(
+                    "pe_ratio"
+                ),
+
+                "roe_percent": ratios.get(
+                    "roe_percent"
+                ),
+
+                "debt_to_equity": ratios.get(
+                    "debt_to_equity"
+                ),
+
+                "financial_health": (
+                    financial_health.get("overall_score")
+                    if financial_health
+                    else None
+                )
+            })
+
+        except Exception as e:
+
+            companies.append({
+                "ticker": ticker,
+                "error": str(e)
+            })
+
+    return companies

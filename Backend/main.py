@@ -16,7 +16,8 @@ from services.analysis import (
     analyze_debt,
     analyze_liquidity,
     calculate_financial_health_score,
-    generate_basic_insights
+    generate_basic_insights,
+    build_peer_comparison
 )
 
 
@@ -284,6 +285,58 @@ def analysis(ticker: str):
 
             "insights":
                 insights
+        }
+
+    except ValueError as e:
+
+        raise HTTPException(
+            status_code=404,
+            detail=str(e)
+        )
+
+# --------------------------------------------------
+# PEER COMPARISON
+# --------------------------------------------------
+
+@app.get("/compare")
+def compare(tickers: str):
+
+    """
+    Compare multiple companies.
+
+    Example:
+    /compare?tickers=NFLX,DIS,WBD
+    """
+
+    ticker_list = [
+        ticker.strip().upper()
+        for ticker in tickers.split(",")
+        if ticker.strip()
+    ]
+
+    if len(ticker_list) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide at least two tickers."
+        )
+
+    if len(ticker_list) > 5:
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide no more than five tickers."
+        )
+
+    try:
+
+        comparison = build_peer_comparison(
+            ticker_list,
+            get_financial_statements,
+            get_ratios
+        )
+
+        return {
+            "tickers": ticker_list,
+            "companies": comparison
         }
 
     except ValueError as e:
