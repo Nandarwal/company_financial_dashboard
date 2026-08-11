@@ -1,6 +1,6 @@
 import math
 import yfinance as yf
-
+from functools import lru_cache
 
 def clean_number(value):
     """
@@ -180,91 +180,209 @@ def get_stock_history(ticker):
     }
 
 
+@lru_cache(maxsize=128)
 def get_ratios(ticker):
     """
-    Fetch key financial ratios for a company.
-    Uses Yahoo info for PE/ROE/profit margin,
-    and balance sheet values for debt-to-equity
-    so it matches /analysis/{ticker}.
+    Calculate key financial ratios without using Yahoo's get_info(),
+    which can trigger rate limits on deployed servers.
+
+    Ratios:
+    - P/E = current stock price / trailing EPS
+    - ROE = net income / shareholders' equity
+    - Debt-to-equity = total debt / shareholders' equity
+    - Profit margin = net income / revenue
+
+    Results are cached in memory to reduce repeated Yahoo requests.
     """
 
+    ticker = ticker.strip().upper()
     company = get_ticker(ticker)
 
     try:
-        info = company.get_info()
+        income_statement = company.get_income_stmt(freq="yearly")
         balance_sheet = company.get_balance_sheet(freq="yearly")
+
+        # We need the latest stock price for P/E.
+        history = company.history(period="5d")
+
     except Exception as e:
         raise ValueError(
-            f"Could not retrieve ratio data for '{ticker.upper()}': {str(e)}."
+            f"Could not retrieve ratio data for '{ticker}': {str(e)}"
         ) from e
 
-    if not info or not info.get("longName"):
+    if income_statement is None or income_statement.empty:
         raise ValueError(
-            f"Company '{ticker.upper()}' was not found."
+            f"No income statement data found for '{ticker}'."
         )
 
-    # P/E ratio from Yahoo info
-    pe_ratio = clean_number(info.get("trailingPE"))
+    if balance_sheet is None or balance_sheet.empty:
+        raise ValueError(
+            f"No balance sheet data found for '{ticker}'."
+        )
 
-    # ROE from Yahoo info (decimal -> percent)
-    roe = clean_number(info.get("returnOnEquity"))
-    if roe is not None:
-        roe = round(roe * 100, 2)
+    # ---------------------------------------------------------
+    # Find latest year
+    # ---------------------------------------------------------
 
-    # Profit margin from Yahoo info (decimal -> percent)
-    profit_margin = clean_number(info.get("profitMargins"))
-    if profit_margin is not None:
-        profit_margin = round(profit_margin * 100, 2)
+    income_dates = list(income_statement.columns)
 
-    # Debt-to-equity from balance sheet, same logic as /analysis/{ticker}
+    if not income_dates:
+        raise ValueError(
+            f"No income statement periods found for '{ticker}'."
+        )
+
+    latest_income_date = max(income_dates)
+
+    # ---------------------------------------------------------
+    # Revenue
+    # ---------------------------------------------------------
+
+    revenue = None
+
+    for row_name in ["TotalRevenue", "OperatingRevenue"]:
+        if row_name in income_statement.index:
+            revenue = clean_number(
+                income_statement.loc[row_name, latest_income_date]
+            )
+            if revenue is not None:
+                break
+
+    # ---------------------------------------------------------
+    # Net income
+    # ---------------------------------------------------------
+
+    net_income = None
+
+    for row_name in ["NetIncome", "NetIncomeCommonStockholders"]:
+        if row_name in income_statement.index:
+            net_income = clean_number(
+                income_statement.loc[row_name, latest_income_date]
+            )
+            if net_income is not None:
+                break
+
+    # ---------------------------------------------------------
+    # EPS
+    # ---------------------------------------------------------
+
+    eps = None
+
+    for row_name in [
+        "DilutedEPS",
+        "BasicEPS"
+    ]:
+        if row_name in income_statement.index:
+            eps = clean_number(
+                income_statement.loc[row_name, latest_income_date]
+            )
+            if eps is not None:
+                break
+
+    # ---------------------------------------------------------
+    # Shareholders' equity
+    # ---------------------------------------------------------
+
+    equity = None
+
+    for row_name in [
+        "StockholdersEquity",
+        "CommonStockEquity"
+    ]:
+        if row_name in balance_sheet.index:
+            equity = clean_number(
+                balance_sheet.loc[row_name, latest_income_date]
+            )
+            if equity is not None:
+                break
+
+    # ---------------------------------------------------------
+    # Total debt
+    # ---------------------------------------------------------
+
+    total_debt = None
+
+    if "TotalDebt" in balance_sheet.index:
+        total_debt = clean_number(
+            balance_sheet.loc["TotalDebt", latest_income_date]
+        )
+
+    # ---------------------------------------------------------
+    # P/E ratio
+    # ---------------------------------------------------------
+
+    pe_ratio = None
+
+    if (
+        eps is not None
+        and eps > 0
+        and history is not None
+        and not history.empty
+    ):
+        latest_close = clean_number(
+            history["Close"].iloc[-1]
+        )
+
+        if latest_close is not None:
+            pe_ratio = latest_close / eps
+
+    # ---------------------------------------------------------
+    # ROE
+    # ---------------------------------------------------------
+
+    roe = None
+
+    if (
+        net_income is not None
+        and equity is not None
+        and equity != 0
+    ):
+        roe = (net_income / equity) * 100
+
+    # ---------------------------------------------------------
+    # Profit margin
+    # ---------------------------------------------------------
+
+    profit_margin = None
+
+    if (
+        net_income is not None
+        and revenue is not None
+        and revenue != 0
+    ):
+        profit_margin = (net_income / revenue) * 100
+
+    # ---------------------------------------------------------
+    # Debt-to-equity
+    # ---------------------------------------------------------
+
     debt_to_equity = None
 
-    if balance_sheet is not None and not balance_sheet.empty:
-        debt_row = None
-        equity_row = None
-
-        for candidate in ["TotalDebt"]:
-            if candidate in balance_sheet.index:
-                debt_row = balance_sheet.loc[candidate]
-                break
-
-        for candidate in ["StockholdersEquity", "CommonStockEquity"]:
-            if candidate in balance_sheet.index:
-                equity_row = balance_sheet.loc[candidate]
-                break
-
-        if debt_row is not None and equity_row is not None:
-            debt_dict = {}
-            equity_dict = {}
-
-            for date, value in debt_row.items():
-                cleaned = clean_number(value)
-                debt_dict[str(date.year)] = cleaned
-
-            for date, value in equity_row.items():
-                cleaned = clean_number(value)
-                equity_dict[str(date.year)] = cleaned
-
-            common_years = sorted(
-                set(debt_dict.keys()) & set(equity_dict.keys()),
-                key=lambda x: int(x)
-            )
-
-            if common_years:
-                latest_year = common_years[-1]
-                debt_value = debt_dict.get(latest_year)
-                equity_value = equity_dict.get(latest_year)
-
-                if debt_value is not None and equity_value not in (None, 0):
-                    debt_to_equity = round(debt_value / equity_value, 2)
+    if (
+        total_debt is not None
+        and equity is not None
+        and equity != 0
+    ):
+        debt_to_equity = total_debt / equity
 
     return {
-        "ticker": ticker.strip().upper(),
-        "pe_ratio": round(pe_ratio, 2) if pe_ratio is not None else None,
-        "roe_percent": roe,
-        "debt_to_equity": debt_to_equity,
-        "profit_margin_percent": profit_margin
+        "ticker": ticker,
+        "pe_ratio": round(pe_ratio, 2)
+        if pe_ratio is not None
+        else None,
+
+        "roe_percent": round(roe, 2)
+        if roe is not None
+        else None,
+
+        "debt_to_equity": round(debt_to_equity, 2)
+        if debt_to_equity is not None
+        else None,
+
+        "profit_margin_percent": round(profit_margin, 2)
+        if profit_margin is not None
+        else None
     }
+
 
 def statement_to_year_dict(statement, row_name):
     """
