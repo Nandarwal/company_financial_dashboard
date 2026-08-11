@@ -2,13 +2,18 @@ import { useState } from "react";
 import "./App.css";
 
 const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_URL || "https://company-financial-dashboard.onrender.com";
 
 function App() {
   const [ticker, setTicker] = useState("AAPL");
   const [input, setInput] = useState("AAPL");
   const [analysis, setAnalysis] = useState(null);
   const [ratios, setRatios] = useState(null);
+
+  const [comparison, setComparison] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState("");
+  const [comparisonInputs, setComparisonInputs] = useState(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -48,6 +53,68 @@ function App() {
       setLoading(false);
     }
   };
+
+  const compareCompanies = async () => {
+  const tickers = comparisonInputs
+    .map((ticker) => ticker.trim().toUpperCase())
+    .filter((ticker) => ticker !== "");
+
+  if (tickers.length < 2) {
+    setComparisonError(
+      "Please enter at least two companies to compare."
+    );
+    return;
+  }
+
+  if (tickers.length > 5) {
+    setComparisonError(
+      "You can compare a maximum of five companies."
+    );
+    return;
+  }
+
+  // Prevent duplicate companies
+  const uniqueTickers = [...new Set(tickers)];
+
+  if (uniqueTickers.length !== tickers.length) {
+    setComparisonError(
+      "Please enter each company only once."
+    );
+    return;
+  }
+
+  setComparisonLoading(true);
+  setComparisonError("");
+  setComparison(null);
+
+  try {
+    const response = await fetch(
+      `${API_URL}/compare?tickers=${encodeURIComponent(
+        tickers.join(",")
+      )}`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Could not retrieve peer comparison."
+      );
+    }
+
+    const data = await response.json();
+
+    setComparison(data);
+
+  } catch (err) {
+
+    setComparisonError(err.message);
+    setComparison(null);
+
+  } finally {
+
+    setComparisonLoading(false);
+
+  }
+};
 
   return (
     <div className="app">
@@ -284,6 +351,171 @@ function App() {
             </section>
           </>
         )}
+          <section className="section comparison-section">
+  <h2>Compare Companies</h2>
+
+  <p className="section-description">
+    Compare financial performance across companies.
+  </p>
+
+  <div className="comparison-controls">
+
+  {comparisonInputs.map((value, index) => (
+    <input
+      key={index}
+      type="text"
+      value={value}
+      onChange={(e) => {
+        const updatedInputs = [
+          ...comparisonInputs
+        ];
+
+        updatedInputs[index] =
+          e.target.value.toUpperCase();
+
+        setComparisonInputs(updatedInputs);
+      }}
+      placeholder={`Company ${index + 1} ticker`}
+      maxLength={10}
+    />
+  ))}
+
+  <button
+    onClick={compareCompanies}
+    disabled={comparisonLoading}
+  >
+    {comparisonLoading
+      ? "Comparing..."
+      : "Compare"}
+  </button>
+
+</div>
+
+
+  {comparisonError && (
+    <div className="error">
+      {comparisonError}
+    </div>
+  )}
+
+  {comparison && (
+    <div className="comparison-table-wrapper">
+      <table className="comparison-table">
+
+        <thead>
+          <tr>
+            <th>Metric</th>
+
+            {comparison.companies.map((company) => (
+              <th key={company.ticker}>
+                {company.ticker}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+
+          <tr>
+            <td>Revenue</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {formatBillions(company.revenue)}B
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>Revenue Growth</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.revenue_growth !== null
+                  ? `${company.revenue_growth}%`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>Profit Growth</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.profit_growth !== null
+                  ? `${company.profit_growth}%`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>Profit Margin</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.profit_margin !== null
+                  ? `${company.profit_margin}%`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>ROE</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.roe_percent !== null
+                  ? `${company.roe_percent}%`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>P/E Ratio</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.pe_ratio !== null
+                  ? `${company.pe_ratio}x`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>Debt / Equity</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.debt_to_equity !== null
+                  ? `${company.debt_to_equity}x`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+          <tr>
+            <td>Financial Health</td>
+
+            {comparison.companies.map((company) => (
+              <td key={company.ticker}>
+                {company.financial_health !== null
+                  ? `${company.financial_health}/10`
+                  : "N/A"}
+              </td>
+            ))}
+          </tr>
+
+        </tbody>
+
+      </table>
+    </div>
+  )}
+</section>
       </main>
     </div>
   );
