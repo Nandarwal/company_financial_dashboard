@@ -54,19 +54,19 @@ function App() {
     }
   };
 
-  const compareCompanies = async () => {
-  const tickers = comparisonInputs
-    .map((ticker) => ticker.trim().toUpperCase())
-    .filter((ticker) => ticker !== "");
+const compareCompanies = async () => {
+  const companies = comparisonInputs
+    .map((company) => company.trim())
+    .filter((company) => company !== "");
 
-  if (tickers.length < 2) {
+  if (companies.length < 2) {
     setComparisonError(
       "Please enter at least two companies to compare."
     );
     return;
   }
 
-  if (tickers.length > 5) {
+  if (companies.length > 5) {
     setComparisonError(
       "You can compare a maximum of five companies."
     );
@@ -74,9 +74,15 @@ function App() {
   }
 
   // Prevent duplicate companies
-  const uniqueTickers = [...new Set(tickers)];
+  const normalizedCompanies = companies.map((company) =>
+    company.toLowerCase()
+  );
 
-  if (uniqueTickers.length !== tickers.length) {
+  const uniqueCompanies = [
+    ...new Set(normalizedCompanies)
+  ];
+
+  if (uniqueCompanies.length !== companies.length) {
     setComparisonError(
       "Please enter each company only once."
     );
@@ -90,12 +96,15 @@ function App() {
   try {
     const response = await fetch(
       `${API_URL}/compare?tickers=${encodeURIComponent(
-        tickers.join(",")
+        companies.join(",")
       )}`
     );
 
     if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+
       throw new Error(
+        errorData?.detail ||
         "Could not retrieve peer comparison."
       );
     }
@@ -115,6 +124,7 @@ function App() {
 
   }
 };
+
 
   return (
     <div className="app">
@@ -355,30 +365,29 @@ function App() {
   <h2>Compare Companies</h2>
 
   <p className="section-description">
-    Compare financial performance across companies.
-  </p>
+  Compare financial performance across companies.
+  Enter company names or ticker symbols.
+</p>
 
   <div className="comparison-controls">
 
   {comparisonInputs.map((value, index) => (
-    <input
-      key={index}
-      type="text"
-      value={value}
-      onChange={(e) => {
-        const updatedInputs = [
-          ...comparisonInputs
-        ];
+  <input
+    key={index}
+    type="text"
+    value={value}
+    onChange={(e) => {
+      const updatedInputs = [
+        ...comparisonInputs
+      ];
 
-        updatedInputs[index] =
-          e.target.value.toUpperCase();
+      updatedInputs[index] = e.target.value;
 
-        setComparisonInputs(updatedInputs);
-      }}
-      placeholder={`Company ${index + 1} ticker`}
-      maxLength={10}
-    />
-  ))}
+      setComparisonInputs(updatedInputs);
+    }}
+    placeholder={`Company ${index + 1}`}
+  />
+))}
 
   <button
     onClick={compareCompanies}
@@ -402,17 +411,21 @@ function App() {
     <div className="comparison-table-wrapper">
       <table className="comparison-table">
 
-        <thead>
-          <tr>
-            <th>Metric</th>
-
-            {comparison.companies.map((company) => (
-              <th key={company.ticker}>
+      <thead>
+        <tr>
+          <th>Metric</th>
+          
+          {comparison.companies.map((company, index) => (
+            <th key={company.ticker}>
+              {comparison.requested_companies[index]}
+              <br />
+              <span className="comparison-ticker">
                 {company.ticker}
-              </th>
-            ))}
-          </tr>
-        </thead>
+              </span>
+            </th>
+        ))}
+      </tr>
+  </thead>
 
         <tbody>
 

@@ -9,6 +9,8 @@ from services.finance import (
     get_financial_statements
 )
 
+from services.company_resolver import resolve_ticker
+
 from services.analysis import (
     analyze_growth,
     analyze_margins,
@@ -67,10 +69,11 @@ def home():
 def company(ticker: str):
 
     try:
+        ticker = resolve_ticker(ticker)
+
         return get_company_profile(ticker)
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=404,
             detail=str(e)
@@ -85,10 +88,11 @@ def company(ticker: str):
 def financials(ticker: str):
 
     try:
+        ticker = resolve_ticker(ticker)
+
         return get_financials(ticker)
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=404,
             detail=str(e)
@@ -103,10 +107,11 @@ def financials(ticker: str):
 def stock(ticker: str):
 
     try:
+        ticker = resolve_ticker(ticker)
+
         return get_stock_history(ticker)
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=404,
             detail=str(e)
@@ -121,10 +126,11 @@ def stock(ticker: str):
 def ratios(ticker: str):
 
     try:
+        ticker = resolve_ticker(ticker)
+
         return get_ratios(ticker)
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=404,
             detail=str(e)
@@ -138,10 +144,11 @@ def ratios(ticker: str):
 def statements(ticker: str):
 
     try:
+        ticker = resolve_ticker(ticker)
+
         return get_financial_statements(ticker)
 
     except ValueError as e:
-
         raise HTTPException(
             status_code=404,
             detail=str(e)
@@ -155,36 +162,26 @@ def statements(ticker: str):
 def analysis(ticker: str):
 
     try:
+        # Resolve company name/ticker first
+        ticker = resolve_ticker(ticker)
 
         # -----------------------------------------
         # 1. FETCH RAW FINANCIAL DATA
         # -----------------------------------------
 
-        statements_data = (
-            get_financial_statements(
-                ticker
-            )
-        )
+        statements_data = (get_financial_statements(ticker))
 
         # -----------------------------------------
         # 2. ANALYZE GROWTH
         # -----------------------------------------
 
-        growth_analysis = (
-            analyze_growth(
-                statements_data
-            )
-        )
+        growth_analysis = (analyze_growth(statements_data))
 
         # -----------------------------------------
         # 3. ANALYZE MARGINS
         # -----------------------------------------
 
-        margin_analysis = (
-            analyze_margins(
-                statements_data
-            )
-        )
+        margin_analysis = (analyze_margins(statements_data))
 
         # -----------------------------------------
         # 4. ANALYZE CASH FLOW
@@ -304,27 +301,57 @@ def compare(tickers: str):
     """
     Compare multiple companies.
 
-    Example:
+    Examples:
     /compare?tickers=NFLX,DIS,WBD
+    /compare?tickers=Reliance,TCS,Infosys
+    /compare?tickers=HDFC Bank,ICICI Bank,SBI
     """
 
-    ticker_list = [
-        ticker.strip().upper()
+    # --------------------------------------------------
+    # 1. Get the companies entered by the user
+    # --------------------------------------------------
+
+    user_inputs = [
+        ticker.strip()
         for ticker in tickers.split(",")
         if ticker.strip()
     ]
 
-    if len(ticker_list) < 2:
+    # --------------------------------------------------
+    # 2. Validate number of companies
+    # --------------------------------------------------
+
+    if len(user_inputs) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Please provide at least two tickers."
+            detail="Please provide at least two companies."
         )
 
-    if len(ticker_list) > 5:
+    if len(user_inputs) > 5:
         raise HTTPException(
             status_code=400,
-            detail="Please provide no more than five tickers."
+            detail="Please provide no more than five companies."
         )
+
+    # --------------------------------------------------
+    # 3. Resolve company names → actual tickers
+    # --------------------------------------------------
+
+    try:
+        ticker_list = []
+
+        for company in user_inputs:
+            resolved = resolve_ticker(company)
+
+            if resolved not in ticker_list:
+                    ticker_list.append(resolved)
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    # --------------------------------------------------
+    # 4. Build peer comparison using existing system
+    # --------------------------------------------------
 
     try:
 
@@ -335,6 +362,7 @@ def compare(tickers: str):
         )
 
         return {
+            "requested_companies": user_inputs,
             "tickers": ticker_list,
             "companies": comparison
         }
@@ -345,3 +373,10 @@ def compare(tickers: str):
             status_code=404,
             detail=str(e)
         )
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "Company Financial Dashboard API"
+    }
