@@ -554,7 +554,7 @@ def get_financial_statements(ticker):
     current_assets = statement_to_year_dict_any(
         balance_sheet,
         [
-            "CurrentAssets"
+            "CurrentAssets", "CurrentAssetsReported"
         ]
     )
 
